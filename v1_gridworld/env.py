@@ -2,21 +2,36 @@ import random
 import numpy as np
 
 # a simple LxL grid world
-L = 4
-# each grid is one of 4 colours as below
-# in code we just use color code 0, 1, 2, 3 instead of strings
-C = ["red", "blue", "green", "yellow"]
+L = 3
+# each grid is one of 3 colours as below
+# in code we just use color code 0, 1, 2 instead of strings
+C = ["red", "blue", "green"] #, "yellow"]
 def make_random_world():
-    return np.random.randint(4, size=(L, L))
+    return np.random.randint(3, size=(L, L))
 
-# the possible rewards for each color, range from -3 to 3
-C_R = (-3,4)
+# the possible rewards for each color, range from -1 to 1
+C_R = (-2,3)
 
 # make the reward function
 def make_R():
     ret = [random.choice(range(*C_R)) for x in C]
     random.shuffle(ret)
     return ret
+
+# enumerate all reward function
+def enum_R():
+    def enum_R_rec(n):
+        if n == 0:
+            return [()]
+        else:
+            rest = enum_R_rec(n-1)
+            ret = []
+            for i in range(*C_R):
+                for r in rest:
+                    ret.append((i,) + r)
+            return ret
+    return enum_R_rec(len(C))
+
 
 # given a world dimension, enumerate ALL possible trajectories
 # that starts at the start_location
@@ -38,23 +53,23 @@ def get_all_trajectory(start_loc):
         else:
             ret = []
             for nxt_loc in nxt_locs:
-                extended_prefix = prefix + [nxt_loc]
+                extended_prefix = prefix + (nxt_loc,)
                 rest = all_tra_recursive(extended_prefix)
                 ret += rest
             ret += [prefix]
             return ret
 
-    return all_tra_recursive([start_loc])
+    return all_tra_recursive((start_loc,))
 
 ALL_TR = dict()
 for start_loc in [(x,y) for x in range(L) for y in range(L)]:
     ALL_TR[start_loc] = get_all_trajectory(start_loc)
 
 # given a trajectory, get the score of that trejectory
-def get_score(world, R, traj,debug=False):
+def get_score(grid, R, traj,debug=False):
     ret = 0
     for (x,y) in traj:
-        color_id = world[x][y]
+        color_id = grid[x][y]
         # a base score of -1 at every step to penalize long trajectories
         ret += R[color_id] - 1
         if debug:
@@ -62,14 +77,14 @@ def get_score(world, R, traj,debug=False):
             print (ret)
     return ret
 
-def get_best_trajs(world, R, start_loc):
+def get_best_trajs(grid, R, start_loc):
     all_tr = ALL_TR[start_loc]
-    all_scores =  [get_score(world, R, tr) for tr in all_tr]
+    all_scores =  [get_score(grid, R, tr) for tr in all_tr]
     best_score = max(all_scores)
     best_idxs = [idx for idx in range(len(all_scores)) if all_scores[idx] == best_score]
     return [all_tr[best_id] for best_id in best_idxs]
 
-def render_world(world, name='world'):
+def render_world(grid, name='world'):
     from matplotlib import pyplot as plt
     from matplotlib.patches import Rectangle
     plt.figure()
@@ -98,6 +113,6 @@ if __name__ == '__main__':
     print (top_traj, all_scores[top_score_id])
     print (get_score(world, R, top_traj, debug=True))
 
-    best_tr_3_3 = get_best_trajs(world, R, (3,3))
+    best_tr_0_0 = get_best_trajs(world, R, (0,0))
     print (best_tr_3_3)
     print (len(best_tr_3_3))
