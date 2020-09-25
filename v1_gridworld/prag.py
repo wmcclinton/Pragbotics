@@ -28,6 +28,7 @@ def comm_acc(S,L):
 # now the real deal, is pragmatics helpful for this grid-world setting?
 print ("if we can only demonstrate ONE trajectory : ")
 print (f"communication effectiveness for S0-L0 pair {comm_acc(S0,L0)}")
+print (f"communication effectiveness for S1-L0 pair {comm_acc(S1,L0)}")
 print (f"communication effectiveness for S1-L1 pair {comm_acc(S1,L1)}")
 
 
