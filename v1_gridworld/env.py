@@ -5,7 +5,7 @@ import numpy as np
 L = 3
 # each grid is one of 3 colours as below
 # in code we just use color code 0, 1, 2 instead of strings
-C = ["red", "blue", "green"] #, "yellow"]
+C = ["red", "green", "blue"] #, "yellow"]
 def make_random_world():
     return np.random.randint(3, size=(L, L))
 
@@ -92,7 +92,7 @@ def render_world(grid, name='world'):
     currentAxis.set_aspect('equal')
     for i in range(L):
         for j in range(L):
-            color_idx = world[i][j]
+            color_idx = grid[i][j]
             color = C[color_idx]
             currentAxis.add_patch(Rectangle((i/L, j/L), 1/L, 1/L,facecolor=color,edgecolor='black'))
     
