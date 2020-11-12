@@ -14,15 +14,19 @@ from monitoring import VideoRecorder
 import getch
 
 import random
+import pickle
+from pong import *
 
 FLAGS = flags.FLAGS
 
-seed = 3
+seed = 123
 np.random.seed(seed)
 tf.random.set_seed(seed)
 
+env = get_pong_env()
+
 # Init Random Policy (NN) given (Env)
-def gen_rand_policy(env):
+def gen_rand_policy():
   num_actions = env.action_space.n
 
   policy = tf.keras.models.Sequential([
@@ -36,7 +40,7 @@ def get_policy_action(policy, obs):
   action = np.argmax(policy(np.array([obs.flatten()])).numpy()[0])
   return action
 
-def get_user_action(env, obs):
+def get_user_action(obs):
   num_actions = env.action_space.n
 
   print('Obs',obs)
@@ -52,7 +56,7 @@ def get_user_action(env, obs):
   return action
 
 # Sample Trajectory (array and vid) given (reset Env)
-def gen_sample_traj(env, policy, max_steps=100, path=None, record=False):
+def gen_sample_traj(policy, max_steps=100, path=None, record=False):
   # if record Save Policy and Trajectories to Folder
   video_path = path
   video_recorder = None
@@ -61,11 +65,13 @@ def gen_sample_traj(env, policy, max_steps=100, path=None, record=False):
 
   traj = []
   obs = env.reset()
+  obs = get_pong_symbolic(obs)
 
   for i in range(max_steps):
     _obs = obs
     action = get_policy_action(policy, obs)
     obs, reward, terminate, _ = env.step(action)
+    obs = get_pong_symbolic(obs)
     traj.append([_obs, action, reward, terminate])
 
     #print(traj[-1])
@@ -84,7 +90,7 @@ def gen_sample_traj(env, policy, max_steps=100, path=None, record=False):
   return traj
 
 # Get Demonstrations from user
-def gen_user_traj(env, max_steps=100, path=None, record=False):
+def gen_user_traj(max_steps=100, path=None, record=False):
   # if record Save Policy and Trajectories to Folder
   video_path = path
   video_recorder = None
@@ -93,15 +99,17 @@ def gen_user_traj(env, max_steps=100, path=None, record=False):
 
   traj = []
   obs = env.reset()
+  obs = get_pong_symbolic(obs)
 
   for i in range(max_steps):
     _obs = obs
-    action = get_user_action(env, obs)
+    action = get_user_action(obs)
     obs, reward, terminate, _ = env.step(action)
+    obs = get_pong_symbolic(obs)
     traj.append([_obs, action, reward, terminate])
 
     #print(traj[-1])
-    #env.render()  # Note: rendering increases step time.
+    env.render()  # Note: rendering increases step time.
 
     if record:
       video_recorder.capture_frame()
@@ -121,16 +129,15 @@ def one_hot(idx, num_classes):
   return a
 
 # Create Function to fit to Demonstrations
-def train_policy(env, demos, policy):
+def train_policy(demos, policy):
   # TODO Warning!!! Probably does not work
   # Format demos into x and y data
   x = []
   y = []
   num_actions = env.action_space.n
-
   for demo in demos:
-    x = x + [t[0].flatten() for t in demo]
-    y = y + [one_hot(t[1], num_actions) for t in demo]
+    x = x + [t[0] for t in demo[0]]
+    y = y + [one_hot(t[1], num_actions) for t in demo[0]]
 
   print(np.array(x).shape)
   print(np.array(y).shape)
@@ -151,10 +158,10 @@ def train_policy(env, demos, policy):
                 loss=loss_fn,
                 metrics=['MeanSquaredError'])
 
-  policy.fit(x, y, epochs=10, verbose=1)
+  policy.fit(x, y, epochs=1000, verbose=1)
 
   # Evaluate?
-  policy.evaluate(x,  y, verbose=2)
+  policy.evaluate(x, y, verbose=2)
 
   return policy
 
@@ -181,41 +188,45 @@ def main(argv):
   if len(argv) > 1:
     raise app.UsageError('Too many command-line arguments.')
 
-  env = gym.make('Pong-v0')
-
-  load_agents = False
+  load_agents = True
+  get_demos = False
 
   if load_agents:
     policy = load_policy('agents/policy1')
-    traj = gen_sample_traj(env, policy, max_steps=100, path='vids/video.mp4', record=True)
+    #traj = gen_sample_traj(policy, max_steps=500, path='vids/video.mp4', record=True)
     #print(traj)
+    print("Loaded Agent")
   else:
-    policy = gen_rand_policy(env)
-    traj = gen_sample_traj(env, policy, max_steps=100, path='vids/video.mp4', record=True)
+    policy = gen_rand_policy()
+    traj = gen_sample_traj(policy, max_steps=500, path='vids/video.mp4', record=True)
     #print(traj)
 
     save_policy(policy, 'agents/policy1')
 
-  print('Getting Demo 1...')
-  demo1 = gen_user_traj(env, max_steps=100, path='vids/demo1.mp4', record=True)
-  #print(traj)
+  if get_demos == True:
+    num_demos = 2
+    demos = []
+    for n in range(num_demos):
+      print('Getting Demo ' + str(n) + '...')
+      demos.append([gen_user_traj(max_steps=500, path='vids/human_demo' + str(n) + '.mp4', record=True)])
 
-  print('Getting Demo 2...')
-  demo2 = gen_user_traj(env, max_steps=100, path='vids/demo2.mp4', record=True)
-  #print(traj)
+    pickle.dump(demos, open( "demos.p", "wb"))
 
   # TODO fit to demos (WARNING!!!: prob doesn't work)
-  demos = [demo1, demo2]
-  train_policy(env, demos, policy)
+  demos = pickle.load(open( "demos.p", "rb" ))
+
+  policy = train_policy(demos, policy)
+
+  traj = gen_sample_traj(policy, max_steps=500, path='vids/BC_video.mp4', record=True)
 
   ###
 
-  #save_policy(policy, 'agents/*bad*_trained_policy1')
+  save_policy(policy, 'agents/BC_trained_policy1_2_demos')
 
   print('Done')
   env.close()
 
 
 if __name__ == '__main__':
-  print('\nHello Google!')
+  #print('\nHello Google!')
   app.run(main)
