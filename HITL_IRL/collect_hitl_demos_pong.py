@@ -193,6 +193,10 @@ def main(argv):
 
   load_agents = False
 
+  #(1) keep rally as long as possible
+  #(2) make win as soon as possible
+  #(3) lose as soon as possible
+
   if load_agents:
     policy = load_policy('agents/policy1')
     #traj = gen_sample_traj(policy, max_steps=500, path='vids/video.mp4', record=True)
@@ -212,7 +216,7 @@ def main(argv):
   for n in range(num_demos):
     print('Generating Policy Trajectories @ hitl_vids/')
     for i in range(5):
-      traj = gen_sample_traj(policy, max_steps=500, path='hitl_vids/visualization' + str(i) + '.mp4', record=True)
+      traj = gen_sample_traj(policy, max_steps=500, path='hitl_vids_' + str(num) + '/visualization' + str(i) + '.mp4', record=True)
 
     print('Getting Demo ' + str(n) + '...')
     demos.append([gen_user_traj(max_steps=500, path='hitl_demos/willie_demo_' + str(int(time.time())) + '_' + str(num) + '.mp4', record=True)])
